@@ -25,6 +25,9 @@
 #include "ns3/ssid.h"
 #include "ns3/netanim-module.h"
 
+#include <iostream>
+#include <fstream>
+
 // Default Network Topology
 //
 //   Wifi 10.1.3.0
@@ -41,7 +44,10 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE ("ThirdScriptExample");
 
 int const nodesIDnb(4);
-int nodesID[nodesIDnb];   //Déclaration du tableau
+int nodesID[nodesIDnb] = {-1, -1, -1, -1};   //Déclaration du tableau
+
+int const nodesRSSInb(4);
+int nodesRSSI[nodesRSSInb] = {-1, -1, -1, -1};   //Déclaration du tableau
 
 void Monitor (std::string context, Ptr<const Packet> pkt, uint16_t channel, WifiTxVector tx, MpduInfo mpdu, SignalNoiseDbm sn)
 {
@@ -58,23 +64,43 @@ void Monitor (std::string context, Ptr<const Packet> pkt, uint16_t channel, Wifi
       }
       i++;
     }
-    std::cout << context << std::endl;
-    std::cout << "\tChannel : " << channel << " pkt: " << pkt->GetUid() << "\t Signal=" << sn.signal << "\tNoise=" << sn.noise << " from node : " << i << std::endl;
+    
+    // std::cout << context << std::endl;
+    // std::cout << "\tChannel : " << channel << " pkt: " << pkt->GetUid() << "\t Signal=" << sn.signal << "\tNoise=" << sn.noise << " from node : " << i << std::endl;
 
+    nodesRSSI[i] = sn.signal;
+    
 }
 
 void MonitorTx (std::string context, Ptr<const Packet> pkt, uint16_t channel, WifiTxVector tx, MpduInfo mpdu)
 {
-
     std::string nodeid = context.substr (10,1);
     std::string::size_type sz;   // alias of size_t
     int i_dec = std::stoi (nodeid,&sz);
-    if(i_dec < 5){
-      nodesID [i_dec] = pkt->GetUid();
-    }
-    std::cout << "\tChannel : " << channel << " pkt: " << pkt->GetUid() << std::endl;
-
+    nodesID [i_dec] = pkt->GetUid();
 }
+
+static void 
+ CourseChange (std::string context, Ptr<const MobilityModel> mobility)
+ {
+    std::ofstream positions;
+    std::ofstream rssi;
+    positions.open ("positions.txt", std::fstream::app);
+    rssi.open ("rssi.txt", std::fstream::app);
+  
+   int n = sizeof(nodesRSSI)/sizeof(nodesRSSI[0]);
+   
+   for(int a = 0; a < n; a++){
+    if (nodesRSSI[a] == -1){
+      return;
+    }
+    rssi << nodesRSSI[a] << " ";
+   }
+   rssi << std::endl;
+   positions << trunc(mobility->GetPosition().x) << " " << trunc(mobility->GetPosition().y) << std::endl;
+   rssi.close();
+   positions.close();
+ }
 
 int 
 main (int argc, char *argv[])
@@ -136,26 +162,30 @@ main (int argc, char *argv[])
 
   MobilityHelper mobility;
 
-  mobility.SetPositionAllocator ("ns3::GridPositionAllocator",
-                                 "MinX", DoubleValue (2.0),
-                                 "MinY", DoubleValue (2.0),
-                                 "GridWidth", UintegerValue (40),
-                                 "LayoutType", StringValue ("RowFirst"));
+  mobility.SetPositionAllocator ("ns3::RandomDiscPositionAllocator",
+                                  "X", StringValue ("10.0"),
+                                  "Y", StringValue ("10.0"),
+                                  "Rho", StringValue ("ns3::UniformRandomVariable[Min=0|Max=30]"));
 
   //mobility.SetMobilityModel ("ns3::RandomWalk2dMobilityModel", "Bounds", RectangleValue (Rectangle (-50, 50, -50, 50)));
   
-
-  mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
+  mobility.SetMobilityModel ("ns3::RandomWalk2dMobilityModel",
+                              "Mode", StringValue ("Time"),
+                              "Time", StringValue ("1s"),
+                              "Speed", StringValue ("ns3::ConstantRandomVariable[Constant=10.0]"),
+                              "Bounds", StringValue ("0|10|0|10"));
 
   mobility.Install (wifiStaNode);
 
   mobility.SetPositionAllocator ("ns3::GridPositionAllocator",
                                  "MinX", DoubleValue (0.0),
                                  "MinY", DoubleValue (0.0),
-                                 "DeltaX", DoubleValue (5.0),
+                                 "DeltaX", DoubleValue (2.0),
                                  "DeltaY", DoubleValue (0),
-                                 "GridWidth", UintegerValue (40),
+                                 "GridWidth", UintegerValue (100),
                                  "LayoutType", StringValue ("RowFirst"));
+
+    mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
 
 
   mobility.Install (wifiApNode);
@@ -188,17 +218,19 @@ main (int argc, char *argv[])
 
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();**/
 
-  Simulator::Stop (Seconds (1));
+  Simulator::Stop (Seconds (10));
 
   Config::Connect ("/NodeList/4/DeviceList/0/$ns3::WifiNetDevice/Phy/MonitorSnifferRx", MakeCallback(&Monitor));
   Config::Connect ("/NodeList/0/DeviceList/0/$ns3::WifiNetDevice/Phy/MonitorSnifferTx", MakeCallback(&MonitorTx));
   Config::Connect ("/NodeList/1/DeviceList/0/$ns3::WifiNetDevice/Phy/MonitorSnifferTx", MakeCallback(&MonitorTx));
   Config::Connect ("/NodeList/2/DeviceList/0/$ns3::WifiNetDevice/Phy/MonitorSnifferTx", MakeCallback(&MonitorTx));
   Config::Connect ("/NodeList/3/DeviceList/0/$ns3::WifiNetDevice/Phy/MonitorSnifferTx", MakeCallback(&MonitorTx));
+  Config::Connect ("/NodeList/4/$ns3::MobilityModel/CourseChange", MakeCallback (&CourseChange));
 
   AnimationInterface anim ("animation.xml");
 
   Simulator::Run ();
+
   Simulator::Destroy ();
   return 0;
 }
