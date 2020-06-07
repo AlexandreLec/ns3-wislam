@@ -24,6 +24,9 @@
 #include "ns3/yans-wifi-helper.h"
 #include "ns3/ssid.h"
 #include "ns3/netanim-module.h"
+#include <ns3/buildings-module.h>
+#include <ns3/buildings-helper.h>
+#include <ns3/hybrid-buildings-propagation-loss-model.h>
 
 #include <iostream>
 #include <fstream>
@@ -64,9 +67,10 @@ void Monitor (std::string context, Ptr<const Packet> pkt, uint16_t channel, Wifi
       }
       i++;
     }
+
     
     // std::cout << context << std::endl;
-    // std::cout << "\tChannel : " << channel << " pkt: " << pkt->GetUid() << "\t Signal=" << sn.signal << "\tNoise=" << sn.noise << " from node : " << i << std::endl;
+    std::cout << "\tChannel : " << channel << " pkt: " << pkt->GetUid() << "\t Signal=" << sn.signal << "\tNoise=" << sn.noise << " from node : " << i << std::endl;
 
     nodesRSSI[i] = sn.signal;
     
@@ -167,13 +171,13 @@ main (int argc, char *argv[])
                                   "Y", StringValue ("10.0"),
                                   "Rho", StringValue ("ns3::UniformRandomVariable[Min=0|Max=30]"));
 
-  //mobility.SetMobilityModel ("ns3::RandomWalk2dMobilityModel", "Bounds", RectangleValue (Rectangle (-50, 50, -50, 50)));
+  mobility.SetMobilityModel ("ns3::RandomWalk2dMobilityModel", "Bounds", RectangleValue (Rectangle (0, 100, 0, 100)));
   
-  mobility.SetMobilityModel ("ns3::RandomWalk2dMobilityModel",
+  /*mobility.SetMobilityModel ("ns3::RandomWalk2dMobilityModel",
                               "Mode", StringValue ("Time"),
                               "Time", StringValue ("1s"),
                               "Speed", StringValue ("ns3::ConstantRandomVariable[Constant=10.0]"),
-                              "Bounds", StringValue ("0|10|0|10"));
+                              "Bounds", StringValue ("0|10|0|10"));*/
 
   mobility.Install (wifiStaNode);
 
@@ -200,23 +204,24 @@ main (int argc, char *argv[])
   address.Assign (staDevice);
   Ipv4InterfaceContainer apDeviceInterfaces = address.Assign (apDevices);
 
-  /*UdpEchoServerHelper echoServer (9);
+  double x_min = 0.0;
+  double x_max = 100.0;
+  double y_min = 0.0;
+  double y_max = 100.0;
+  double z_min = 0.0;
+  double z_max = 10.0;
 
-  ApplicationContainer serverApps = echoServer.Install (wifiApNode);
-  serverApps.Start (Seconds (1.0));
-  serverApps.Stop (Seconds (10.0));
+  Ptr<Building> b = CreateObject<Building> ();
 
-  UdpEchoClientHelper echoClient (apDeviceInterfaces.GetAddress(0),9);
-  echoClient.SetAttribute ("MaxPackets", UintegerValue (1));
-  echoClient.SetAttribute ("Interval", TimeValue (Seconds (1.0)));
-  echoClient.SetAttribute ("PacketSize", UintegerValue (1024));
+  b->SetBoundaries (Box (x_min, x_max, y_min, y_max, z_min, z_max));
+  b->SetBuildingType (Building::Residential);
+  b->SetExtWallsType (Building::ConcreteWithWindows);
+  b->SetNFloors (1);
+  b->SetNRoomsX (2);
+  b->SetNRoomsY (2);
 
-  ApplicationContainer clientApps = 
-    echoClient.Install (wifiStaNodes.Get (nWifi - 1));
-  clientApps.Start (Seconds (2.0));
-  clientApps.Stop (Seconds (10.0));
-
-  Ipv4GlobalRoutingHelper::PopulateRoutingTables ();**/
+  BuildingsHelper::Install(wifiApNode);
+  BuildingsHelper::Install(wifiStaNode);
 
   Simulator::Stop (Seconds (10));
 
