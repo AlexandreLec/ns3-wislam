@@ -1,5 +1,5 @@
 // Variables used for this implementation.
-#include "ns3/core-module.h"
+#include <ns3/core-module.h>
 
 #include <ns3/network-module.h>
 
