@@ -166,33 +166,21 @@ main (int argc, char *argv[])
 
   MobilityHelper mobility;
 
-  mobility.SetPositionAllocator ("ns3::RandomDiscPositionAllocator",
-                                  "X", StringValue ("10.0"),
-                                  "Y", StringValue ("10.0"),
-                                  "Rho", StringValue ("ns3::UniformRandomVariable[Min=0|Max=30]"));
+  mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
+  mobility.Install (wifiApNode);
 
-  mobility.SetMobilityModel ("ns3::RandomWalk2dMobilityModel", "Bounds", RectangleValue (Rectangle (0, 100, 0, 100)));
-  
-  /*mobility.SetMobilityModel ("ns3::RandomWalk2dMobilityModel",
+  mobility.SetPositionAllocator ("ns3::RandomDiscPositionAllocator",
+                                  "X", StringValue ("25.0"),
+                                  "Y", StringValue ("25.0"),
+                                  "Rho", StringValue ("ns3::UniformRandomVariable[Min=0|Max=30]"));
+  mobility.SetMobilityModel ("ns3::RandomWalk2dMobilityModel",
                               "Mode", StringValue ("Time"),
-                              "Time", StringValue ("1s"),
-                              "Speed", StringValue ("ns3::ConstantRandomVariable[Constant=10.0]"),
-                              "Bounds", StringValue ("0|10|0|10"));*/
+                              "Time", StringValue ("2s"),
+                              "Speed", StringValue ("ns3::ConstantRandomVariable[Constant=5.0]"),
+                              "Bounds", StringValue ("0|50|0|50"));
+
 
   mobility.Install (wifiStaNode);
-
-  mobility.SetPositionAllocator ("ns3::GridPositionAllocator",
-                                 "MinX", DoubleValue (0.0),
-                                 "MinY", DoubleValue (0.0),
-                                 "DeltaX", DoubleValue (2.0),
-                                 "DeltaY", DoubleValue (0),
-                                 "GridWidth", UintegerValue (100),
-                                 "LayoutType", StringValue ("RowFirst"));
-
-    mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
-
-
-  mobility.Install (wifiApNode);
 
   InternetStackHelper stack;
   stack.Install (wifiApNode);
@@ -204,10 +192,21 @@ main (int argc, char *argv[])
   address.Assign (staDevice);
   Ipv4InterfaceContainer apDeviceInterfaces = address.Assign (apDevices);
 
+  Ptr<ConstantPositionMobilityModel> mm0 = wifiApNode.Get (0)->GetObject<ConstantPositionMobilityModel> ();
+  Ptr<ConstantPositionMobilityModel> mm1 = wifiApNode.Get (1)->GetObject<ConstantPositionMobilityModel> ();
+  Ptr<ConstantPositionMobilityModel> mm2 = wifiApNode.Get (2)->GetObject<ConstantPositionMobilityModel> ();
+  Ptr<ConstantPositionMobilityModel> mm3 = wifiApNode.Get (3)->GetObject<ConstantPositionMobilityModel> ();
+  //Ptr<ConstantPositionMobilityModel> mmClient = wifiStaNode.Get (0)->GetObject<ConstantPositionMobilityModel> ();
+  mm0->SetPosition (Vector (10.0, 15.0, 1.5));
+  mm1->SetPosition (Vector (35.0, 30.0, 1.5));
+  mm2->SetPosition (Vector (45.0, 15.0, 1.5));
+  mm3->SetPosition (Vector (15.0, 40.0, 1.5));
+  //mmClient->SetPosition(Vector(25.0,25.0,1.5));
+
   double x_min = 0.0;
-  double x_max = 100.0;
+  double x_max = 50.0;
   double y_min = 0.0;
-  double y_max = 100.0;
+  double y_max = 50.0;
   double z_min = 0.0;
   double z_max = 10.0;
 
@@ -223,7 +222,7 @@ main (int argc, char *argv[])
   BuildingsHelper::Install(wifiApNode);
   BuildingsHelper::Install(wifiStaNode);
 
-  Simulator::Stop (Seconds (10));
+  Simulator::Stop (Seconds (30));
 
   Config::Connect ("/NodeList/4/DeviceList/0/$ns3::WifiNetDevice/Phy/MonitorSnifferRx", MakeCallback(&Monitor));
   Config::Connect ("/NodeList/0/DeviceList/0/$ns3::WifiNetDevice/Phy/MonitorSnifferTx", MakeCallback(&MonitorTx));
@@ -233,7 +232,8 @@ main (int argc, char *argv[])
   Config::Connect ("/NodeList/4/$ns3::MobilityModel/CourseChange", MakeCallback (&CourseChange));
 
   AnimationInterface anim ("animation.xml");
-
+  anim.SetBackgroundImage ("images.png", 0, 0, 0, 0, 0);
+  anim.UpdateNodeColor (4, 0, 0, 255);
   Simulator::Run ();
 
   Simulator::Destroy ();
